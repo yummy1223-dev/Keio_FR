@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="仏語カード">
+  <title>フランス語 フレーズカード</title>
+  <style>
+    :root {
+      --primary: #1d4ed8;
+      --card-bg: #ffffff;
+      --text-main: #1f2937;
+      --text-sub: #6b7280;
+      --border: #e5e7eb;
+      --ok: #16a34a;
+      --ng: #dc2626;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+      background: #f8fafc; color: var(--text-main);
+      display: flex; flex-direction: column; align-items: center;
+      min-height: 100vh; padding: 12px; overflow-x: hidden;
+    }
+    header, .filters, .controls, .card-scene, .know-buttons, .nav-buttons, .summary { width: 100%; max-width: 480px; }
+    header { text-align: center; margin-bottom: 8px; }
+    h1 { font-size: 1.15rem; font-weight: 700; color: #1e3a8a; margin-bottom: 2px; }
+    #status { font-size: 0.72rem; color: var(--text-sub); }
+    #status.error { color: var(--ng); }
+
+    .filters { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+    select {
+      flex: 1 1 110px; min-width: 0; padding: 7px 8px; border-radius: 10px;
+      border: 1px solid var(--border); background: #fff; font-size: 0.82rem; color: #334155;
+    }
+    .chip {
+      flex: 0 0 auto; padding: 7px 12px; border-radius: 10px; border: 1px solid var(--border);
+      background: #fff; font-size: 0.8rem; color: #475569; cursor: pointer; font-weight: 600;
+    }
+    .chip.on { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    .controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .badge { font-size: 0.85rem; color: var(--text-sub); font-weight: 600; }
+    .mode-btn {
+      background: #e2e8f0; border: none; padding: 6px 12px; border-radius: 20px;
+      font-size: 0.8rem; font-weight: 600; color: #334155; cursor: pointer;
+    }
+
+    .card-scene { height: 330px; perspective: 1000px; margin-bottom: 12px; }
+    .card {
+      width: 100%; height: 100%; position: relative; transform-style: preserve-3d;
+      transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer;
+    }
+    .card.flipped { transform: rotateY(180deg); }
+    .card-face {
+      position: absolute; width: 100%; height: 100%; backface-visibility: hidden;
+      border-radius: 20px; background: var(--card-bg); border: 1px solid var(--border);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
+      padding: 24px; text-align: center; overflow: auto;
+    }
+    .card-back { transform: rotateY(180deg); background: #fcfdfe; }
+    .category-label {
+      position: absolute; top: 14px; left: 18px; font-size: 0.72rem; color: #94a3b8;
+      font-weight: 700; letter-spacing: 0.5px;
+    }
+    .audio-btn {
+      position: absolute; top: 12px; right: 14px; background: #eff6ff; border: none;
+      width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center;
+      justify-content: center; cursor: pointer; color: var(--primary);
+    }
+    .fr-text { font-size: 1.45rem; font-weight: 700; color: #0f172a; line-height: 1.35; margin-bottom: 12px; }
+    .ipa-text {
+      font-family: "Lucida Sans Unicode", "Segoe UI", sans-serif; font-size: 0.92rem; color: #475569;
+      background: #f1f5f9; padding: 3px 10px; border-radius: 8px; margin-bottom: 8px;
+    }
+    .kana-text { font-size: 0.95rem; color: #0369a1; font-weight: 500; }
+    .ja-text { font-size: 1.3rem; font-weight: 700; color: #1e293b; line-height: 1.4; margin-bottom: 12px; }
+    .sub-note { font-size: 0.8rem; color: #64748b; margin-top: 8px; }
+    .hint { position: absolute; bottom: 12px; font-size: 0.72rem; color: #94a3b8; }
+
+    .know-buttons, .nav-buttons { display: flex; gap: 10px; margin-bottom: 10px; }
+    .btn {
+      flex: 1; padding: 13px; border: none; border-radius: 14px; font-size: 0.95rem;
+      font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .btn-prev { background: #e2e8f0; color: #334155; }
+    .btn-next { background: var(--primary); color: #fff; }
+    .btn-ng { background: #fee2e2; color: var(--ng); }
+    .btn-ok { background: #dcfce7; color: var(--ok); }
+    .summary { text-align: center; font-size: 0.78rem; color: var(--text-sub); margin-top: 4px; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>フランス語 フレーズカード</h1>
+    <div id="status">読み込み中…</div>
+  </header>
+
+  <div class="filters">
+    <select id="lessonSelect" aria-label="回"></select>
+    <select id="catSelect" aria-label="カテゴリ"></select>
+    <button class="chip" id="unknownBtn">未習得のみ</button>
+    <button class="chip" id="shuffleBtn">シャッフル</button>
+  </div>
+
+  <div class="controls">
+    <span class="badge" id="cardCounter">- / -</span>
+    <button class="mode-btn" id="modeBtn">モード: 仏 ➔ 日</button>
+  </div>
+
+  <div class="card-scene" id="scene">
+    <div class="card" id="card">
+      <div class="card-face card-front">
+        <span class="category-label" id="frontCategory"></span>
+        <button class="audio-btn" id="audioBtn" aria-label="発音を聞く">
+          <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+          </svg>
+        </button>
+        <div id="frontMain"></div>
+        <div class="hint">タップして裏返す</div>
+      </div>
+      <div class="card-face card-back">
+        <span class="category-label" id="backCategory"></span>
+        <div id="backMain"></div>
+        <div class="hint">タップして戻る</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="know-buttons">
+    <button class="btn btn-ng" id="ngBtn">✗ まだ</button>
+    <button class="btn btn-ok" id="okBtn">✓ 覚えた</button>
+  </div>
+
+  <div class="nav-buttons">
+    <button class="btn btn-prev" id="prevBtn">◀ 前へ</button>
+    <button class="btn btn-next" id="nextBtn">次へ ▶</button>
+  </div>
+
+  <div class="summary" id="summary"></div>
+
+  <script>
+    // ============================================================
+    // 設定：ここだけ書き換えればOK
+    // Googleスプレッドシートの「ウェブに公開」(CSV形式) のURLを貼る。
+    // 空のままなら、同じフォルダの cards.csv を読み込む（動作確認用）。
+    // ============================================================
+    const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSTpo2h9VsASd3oz99cDKjCb1PTsEsjUWRJpprBtphag7xK5BpeXl4WWOUHz1lA0my655kW6B_Z6r81/pub?gid=1490753586&single=true&output=csv';
+    const LOCAL_CSV = './cards.csv';
+
+    const CACHE_KEY = 'frcards_cache_v1';
+    const KNOWN_KEY = 'frcards_known_v1';
+
+    let allCards = [];
+    let list = [];
+    let index = 0;
+    let isFrFirst = true;
+    let onlyUnknown = false;
+    let shuffleOn = false;
+    let known = new Set();
+
+    const $ = (id) => document.getElementById(id);
+    const card = $('card');
+
+    // ---------- 小物 ----------
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    function safeGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+    function safeSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+    function setStatus(msg, isError) {
+      const el = $('status');
+      el.textContent = msg;
+      el.className = isError ? 'error' : '';
+    }
+
+    // ---------- CSVパーサ（引用符・改行・カンマ対応） ----------
+    function parseCSV(text) {
+      const rows = [];
+      let row = [], field = '', inQ = false;
+      text = text.replace(/^\uFEFF/, '');
+      for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if (inQ) {
+          if (c === '"') {
+            if (text[i + 1] === '"') { field += '"'; i++; } else { inQ = false; }
+          } else { field += c; }
+        } else if (c === '"') { inQ = true; }
+        else if (c === ',') { row.push(field); field = ''; }
+        else if (c === '\n' || c === '\r') {
+          if (c === '\r' && text[i + 1] === '\n') i++;
+          row.push(field); field = '';
+          if (row.some((v) => v.trim() !== '')) rows.push(row);
+          row = [];
+        } else { field += c; }
+      }
+      row.push(field);
+      if (row.some((v) => v.trim() !== '')) rows.push(row);
+      return rows;
+    }
+
+    // 見出し名で列を判定するので、列の順番を入れ替えてもOK
+    function parseCards(text) {
+      const rows = parseCSV(text);
+      if (rows.length < 2) return [];
+      const head = rows[0].map((h) => h.trim());
+      const col = (name) => head.indexOf(name);
+      const idx = {
+        lesson: col('回'), cat: col('カテゴリ'), fr: col('フランス語'),
+        ipa: col('IPA'), kana: col('カナ'), ja: col('日本語'), note: col('メモ'),
+      };
+      if (idx.fr < 0 || idx.ja < 0) throw new Error('見出し行に「フランス語」「日本語」の列がありません');
+      const get = (r, i) => (i >= 0 && r[i] != null ? r[i].trim() : '');
+      return rows.slice(1).map((r) => ({
+        lesson: parseInt(get(r, idx.lesson), 10) || 0,
+        cat: get(r, idx.cat) || 'その他',
+        fr: get(r, idx.fr),
+        ipa: get(r, idx.ipa),
+        kana: get(r, idx.kana),
+        ja: get(r, idx.ja),
+        note: get(r, idx.note),
+      })).filter((c) => c.fr && c.ja);
+    }
+
+    // ---------- 読み込み ----------
+    async function load() {
+      const url = SHEET_CSV_URL
+        ? SHEET_CSV_URL + (SHEET_CSV_URL.includes('?') ? '&' : '?') + 't=' + Date.now()
+        : LOCAL_CSV;
+      try {
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const text = await res.text();
+        const cards = parseCards(text);
+        if (!cards.length) throw new Error('カードが0件でした');
+        safeSet(CACHE_KEY, text);
+        setStatus((SHEET_CSV_URL ? 'スプレッドシートから' : 'cards.csvから') + ' ' + cards.length + '枚を読み込みました');
+        start(cards);
+      } catch (e) {
+        const cached = safeGet(CACHE_KEY);
+        if (cached) {
+          try {
+            const cards = parseCards(cached);
+            if (cards.length) {
+              setStatus('オフライン：前回取得したデータ（' + cards.length + '枚）を表示中', false);
+              start(cards);
+              return;
+            }
+          } catch (e2) {}
+        }
+        setStatus('読み込みに失敗しました: ' + e.message + '（ファイルを直接開いている場合は、公開したURLから開いてください）', true);
+        $('frontMain').innerHTML = '<div class="ja-text">データを読み込めません</div>';
+      }
+    }
+
+    function start(cards) {
+      allCards = cards;
+      try { known = new Set(JSON.parse(safeGet(KNOWN_KEY) || '[]')); } catch (e) { known = new Set(); }
+      buildFilters();
+      rebuild();
+    }
+
+    // ---------- フィルタ（回・カテゴリは自動生成） ----------
+    function buildFilters() {
+      const lessons = [...new Set(allCards.map((c) => c.lesson))].filter((n) => n > 0).sort((a, b) => a - b);
+      const ls = $('lessonSelect');
+      ls.innerHTML = '<option value="all">すべての回</option>';
+      if (lessons.length) {
+        ls.innerHTML += '<option value="latest">最新回（第' + lessons[lessons.length - 1] + '回）</option>';
+        lessons.forEach((n) => { ls.innerHTML += '<option value="' + n + '">第' + n + '回</option>'; });
+      }
+      const cs = $('catSelect');
+      const cats = [...new Set(allCards.map((c) => c.cat))];
+      cs.innerHTML = '<option value="all">すべてのカテゴリ</option>';
+      cats.forEach((c) => { cs.innerHTML += '<option value="' + esc(c) + '">' + esc(c) + '</option>'; });
+    }
+
+    function shuffleArray(a) {
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function rebuild() {
+      let lesson = $('lessonSelect').value;
+      const cat = $('catSelect').value;
+      if (lesson === 'latest') lesson = String(Math.max(...allCards.map((c) => c.lesson)));
+      list = allCards.filter((c) =>
+        (lesson === 'all' || c.lesson === parseInt(lesson, 10)) &&
+        (cat === 'all' || c.cat === cat) &&
+        (!onlyUnknown || !known.has(c.fr))
+      );
+      if (shuffleOn) shuffleArray(list);
+      index = 0;
+      render();
+    }
+
+    // ---------- 描画 ----------
+    function render() {
+      card.classList.remove('flipped');
+      updateSummary();
+      if (!list.length) {
+        $('cardCounter').textContent = '0 / 0';
+        $('frontCategory').textContent = '';
+        $('backCategory').textContent = '';
+        $('frontMain').innerHTML = '<div class="ja-text">該当するカードがありません</div>';
+        $('backMain').innerHTML = '';
+        return;
+      }
+      const item = list[index];
+      $('cardCounter').textContent = (index + 1) + ' / ' + list.length;
+      const mark = known.has(item.fr) ? ' ✓' : '';
+      const frBlock =
+        '<div class="fr-text">' + esc(item.fr) + '</div>' +
+        (item.ipa ? '<div class="ipa-text">' + esc(item.ipa) + '</div>' : '') +
+        (item.kana ? '<div class="kana-text">' + esc(item.kana) + '</div>' : '');
+      const note = item.note ? '<div class="sub-note">💡 ' + esc(item.note) + '</div>' : '';
+
+      if (isFrFirst) {
+        $('frontCategory').textContent = item.cat + mark;
+        $('frontMain').innerHTML = frBlock;
+        $('backCategory').textContent = '日本語訳';
+        $('backMain').innerHTML = '<div class="ja-text">' + esc(item.ja) + '</div>' + note;
+      } else {
+        $('frontCategory').textContent = '日本語' + mark;
+        $('frontMain').innerHTML = '<div class="ja-text">' + esc(item.ja) + '</div>';
+        $('backCategory').textContent = item.cat;
+        $('backMain').innerHTML = frBlock + note;
+      }
+    }
+
+    function updateSummary() {
+      const total = allCards.length;
+      const k = allCards.filter((c) => known.has(c.fr)).length;
+      $('summary').textContent = '覚えた ' + k + ' / 全' + total + '枚（この端末に保存）';
+    }
+
+    // ---------- 操作 ----------
+    function flipCard() { if (list.length) card.classList.toggle('flipped'); }
+    function nextCard() { if (!list.length) return; index = (index + 1) % list.length; render(); }
+    function prevCard() { if (!list.length) return; index = (index - 1 + list.length) % list.length; render(); }
+
+    function mark(isKnown) {
+      if (!list.length) return;
+      const fr = list[index].fr;
+      if (isKnown) known.add(fr); else known.delete(fr);
+      safeSet(KNOWN_KEY, JSON.stringify([...known]));
+      nextCard();
+    }
+
+    function playAudio(e) {
+      e.stopPropagation();
+      if (!list.length || !window.speechSynthesis) return;
+      const u = new SpeechSynthesisUtterance(list[index].fr);
+      u.lang = 'fr-FR';
+      u.rate = 0.85;
+      const v = speechSynthesis.getVoices().find((v) => v.lang && v.lang.toLowerCase().startsWith('fr'));
+      if (v) u.voice = v;
+      speechSynthesis.cancel();
+      speechSynthesis.speak(u);
+    }
+
+    card.addEventListener('click', flipCard);
+    $('audioBtn').addEventListener('click', playAudio);
+    $('nextBtn').addEventListener('click', nextCard);
+    $('prevBtn').addEventListener('click', prevCard);
+    $('okBtn').addEventListener('click', () => mark(true));
+    $('ngBtn').addEventListener('click', () => mark(false));
+    $('lessonSelect').addEventListener('change', rebuild);
+    $('catSelect').addEventListener('change', rebuild);
+    $('modeBtn').addEventListener('click', () => {
+      isFrFirst = !isFrFirst;
+      $('modeBtn').textContent = isFrFirst ? 'モード: 仏 ➔ 日' : 'モード: 日 ➔ 仏';
+      render();
+    });
+    $('unknownBtn').addEventListener('click', () => {
+      onlyUnknown = !onlyUnknown;
+      $('unknownBtn').classList.toggle('on', onlyUnknown);
+      rebuild();
+    });
+    $('shuffleBtn').addEventListener('click', () => {
+      shuffleOn = !shuffleOn;
+      $('shuffleBtn').classList.toggle('on', shuffleOn);
+      rebuild();
+    });
+
+    // キーボード（PC用）
+    document.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'SELECT') return;
+      if (e.key === 'ArrowRight') nextCard();
+      else if (e.key === 'ArrowLeft') prevCard();
+      else if (e.key === ' ') { e.preventDefault(); flipCard(); }
+    });
+
+    // スワイプ（スマホ用）
+    let touchStartX = 0;
+    $('scene').addEventListener('touchstart', (e) => { touchStartX = e.changedTouches[0].screenX; }, { passive: true });
+    $('scene').addEventListener('touchend', (e) => {
+      const dx = e.changedTouches[0].screenX - touchStartX;
+      if (dx < -50) nextCard();
+      if (dx > 50) prevCard();
+    }, { passive: true });
+
+    if (window.speechSynthesis) speechSynthesis.getVoices();
+    load();
+  </script>
+</body>
+</html>
