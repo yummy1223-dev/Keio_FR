@@ -90,6 +90,54 @@
     .btn-ng { background: #fee2e2; color: var(--ng); }
     .btn-ok { background: #dcfce7; color: var(--ok); }
     .summary { text-align: center; font-size: 0.78rem; color: var(--text-sub); margin-top: 4px; }
+
+    /* 表示切替・一覧表示 */
+    .toolbar { width: 100%; max-width: 480px; display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 8px; }
+    .seg-group { display: inline-flex; align-items: center; gap: 6px; }
+    .seg-label { font-size: 0.75rem; color: var(--text-sub); font-weight: 600; }
+    .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: #fff; }
+    .seg button {
+      border: none; background: #fff; padding: 7px 12px; font-size: 0.8rem; font-weight: 600;
+      color: #475569; cursor: pointer; border-right: 1px solid var(--border);
+    }
+    .seg button:last-child { border-right: none; }
+    .seg button.on { background: var(--primary); color: #fff; }
+    #hideGroup { display: none; }
+    body.list-mode #hideGroup { display: inline-flex; }
+    body.list-mode #modeBtn, body.list-mode #cardView { display: none; }
+    #listView { display: none; width: 100%; max-width: 900px; }
+    body.list-mode #listView { display: block; }
+    body.list-mode .toolbar, body.list-mode .filters, body.list-mode .controls, body.list-mode header, body.list-mode .summary { max-width: 900px; }
+    .table-wrap { background: #fff; border: 1px solid var(--border); border-radius: 14px; overflow-x: auto; }
+    table.vocab { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+    table.vocab th {
+      position: sticky; top: 0; background: #f1f5f9; color: #475569; font-size: 0.74rem;
+      text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    table.vocab td { padding: 9px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: top; line-height: 1.45; }
+    table.vocab tr:last-child td { border-bottom: none; }
+    td.c-ja { min-width: 9em; }
+    td.c-fr { font-weight: 700; color: #0f172a; min-width: 9em; }
+    td.c-ipa { font-family: "Lucida Sans Unicode", "Segoe UI", sans-serif; color: #475569; font-size: 0.8rem; min-width: 8em; }
+    td.c-kana { color: #0369a1; min-width: 8em; }
+    /* 隠す列：1列まるごと隠す。セルをタップするとその行だけ見える */
+    table.hide-ja td.c-ja:not(.shown), table.hide-fr td.c-fr:not(.shown) {
+      color: transparent; background: #e2e8f0; user-select: none; -webkit-user-select: none; cursor: pointer;
+    }
+    table.hide-ja td.c-ja.shown, table.hide-fr td.c-fr.shown { cursor: pointer; }
+    table.vocab td, table.vocab th { overflow-wrap: anywhere; }
+    @media (max-width: 600px) {
+      body.list-mode { padding: 8px; }
+      table.vocab { font-size: 0.74rem; table-layout: fixed; }
+      table.vocab th { font-size: 0.66rem; padding: 6px 5px; }
+      table.vocab td { padding: 7px 5px; line-height: 1.4; }
+      td.c-ja, td.c-fr, td.c-ipa, td.c-kana { min-width: 0; }
+      td.c-ipa { font-size: 0.68rem; }
+      table.vocab th:nth-child(1), table.vocab th:nth-child(2) { width: 29%; }
+      table.vocab th:nth-child(3), table.vocab th:nth-child(4) { width: 21%; }
+    }
+    .list-empty { padding: 24px; text-align: center; color: var(--text-sub); font-size: 0.9rem; }
+    .list-hint { font-size: 0.72rem; color: var(--text-sub); text-align: center; margin-top: 6px; }
   </style>
 </head>
 <body>
@@ -106,11 +154,30 @@
     <button class="chip" id="shuffleBtn">シャッフル</button>
   </div>
 
+  <div class="toolbar">
+    <div class="seg-group">
+      <span class="seg-label">表示</span>
+      <div class="seg" id="viewSeg">
+        <button type="button" data-view="card" class="on">カード</button>
+        <button type="button" data-view="list">一覧</button>
+      </div>
+    </div>
+    <div class="seg-group" id="hideGroup">
+      <span class="seg-label">隠す</span>
+      <div class="seg" id="hideSeg">
+        <button type="button" data-hide="none" class="on">なし</button>
+        <button type="button" data-hide="ja">日本語</button>
+        <button type="button" data-hide="fr">フランス語</button>
+      </div>
+    </div>
+  </div>
+
   <div class="controls">
     <span class="badge" id="cardCounter">- / -</span>
     <button class="mode-btn" id="modeBtn">モード: 仏 ➔ 日</button>
   </div>
 
+  <div id="cardView">
   <div class="card-scene" id="scene">
     <div class="card" id="card">
       <div class="card-face card-front">
@@ -140,6 +207,19 @@
     <button class="btn btn-prev" id="prevBtn">◀ 前へ</button>
     <button class="btn btn-next" id="nextBtn">次へ ▶</button>
   </div>
+  </div>
+
+  <div id="listView">
+    <div class="table-wrap">
+      <table class="vocab" id="vocabTable">
+        <thead>
+          <tr><th>日本語</th><th>フランス語</th><th>発音記号</th><th>カタカナ</th></tr>
+        </thead>
+        <tbody id="vocabBody"></tbody>
+      </table>
+    </div>
+    <div class="list-hint" id="listHint"></div>
+  </div>
 
   <div class="summary" id="summary"></div>
 
@@ -149,11 +229,12 @@
     // Googleスプレッドシートの「ウェブに公開」(CSV形式) のURLを貼る。
     // 空のままなら、同じフォルダの cards.csv を読み込む（動作確認用）。
     // ============================================================
-    const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSTpo2h9VsASd3oz99cDKjCb1PTsEsjUWRJpprBtphag7xK5BpeXl4WWOUHz1lA0my655kW6B_Z6r81/pub?gid=1490753586&single=true&output=csv';
+    const SHEET_CSV_URL = '';
     const LOCAL_CSV = './cards.csv';
 
     const CACHE_KEY = 'frcards_cache_v1';
     const KNOWN_KEY = 'frcards_known_v1';
+    const VIEW_KEY = 'frcards_view_v1';
 
     let allCards = [];
     let list = [];
@@ -162,6 +243,8 @@
     let onlyUnknown = false;
     let shuffleOn = false;
     let known = new Set();
+    let viewMode = 'card';   // 'card' | 'list'
+    let hideCol = 'none';    // 'none' | 'ja' | 'fr'
 
     const $ = (id) => document.getElementById(id);
     const card = $('card');
@@ -261,6 +344,13 @@
       allCards = cards;
       try { known = new Set(JSON.parse(safeGet(KNOWN_KEY) || '[]')); } catch (e) { known = new Set(); }
       buildFilters();
+      try {
+        const v = JSON.parse(safeGet(VIEW_KEY) || '{}');
+        hideCol = (v.hide === 'ja' || v.hide === 'fr') ? v.hide : 'none';
+        viewMode = v.view === 'list' ? 'list' : 'card';
+      } catch (e) {}
+      document.querySelectorAll('#hideSeg button').forEach((b) => b.classList.toggle('on', b.dataset.hide === hideCol));
+      setView(viewMode);
       rebuild();
     }
 
@@ -299,14 +389,59 @@
       if (shuffleOn) shuffleArray(list);
       index = 0;
       render();
+      renderList();
+    }
+
+    // ---------- 一覧表示 ----------
+    function renderList() {
+      const body = $('vocabBody');
+      const tbl = $('vocabTable');
+      tbl.classList.toggle('hide-ja', hideCol === 'ja');
+      tbl.classList.toggle('hide-fr', hideCol === 'fr');
+      if (!list.length) {
+        body.innerHTML = '<tr><td colspan="4" class="list-empty">該当するカードがありません</td></tr>';
+      } else {
+        body.innerHTML = list.map((c) =>
+          '<tr>' +
+          '<td class="c-ja">' + esc(c.ja) + '</td>' +
+          '<td class="c-fr">' + esc(c.fr) + '</td>' +
+          '<td class="c-ipa">' + esc(c.ipa) + '</td>' +
+          '<td class="c-kana">' + esc(c.kana) + '</td>' +
+          '</tr>'
+        ).join('');
+      }
+      $('listHint').textContent = hideCol === 'none' ? '' : '隠れているセルをタップすると、その行だけ表示されます';
+      updateCounter();
+    }
+
+    function saveView() { safeSet(VIEW_KEY, JSON.stringify({ view: viewMode, hide: hideCol })); }
+
+    function setView(v) {
+      viewMode = v === 'list' ? 'list' : 'card';
+      document.body.classList.toggle('list-mode', viewMode === 'list');
+      document.querySelectorAll('#viewSeg button').forEach((b) => b.classList.toggle('on', b.dataset.view === viewMode));
+      if (viewMode === 'list') renderList(); else updateCounter();
+      saveView();
+    }
+
+    function setHide(h) {
+      hideCol = (h === 'ja' || h === 'fr') ? h : 'none';
+      document.querySelectorAll('#hideSeg button').forEach((b) => b.classList.toggle('on', b.dataset.hide === hideCol));
+      renderList();
+      saveView();
     }
 
     // ---------- 描画 ----------
+    function updateCounter() {
+      if (viewMode === 'list') $('cardCounter').textContent = list.length + '枚';
+      else $('cardCounter').textContent = list.length ? (index + 1) + ' / ' + list.length : '0 / 0';
+    }
+
     function render() {
       card.classList.remove('flipped');
       updateSummary();
+      updateCounter();
       if (!list.length) {
-        $('cardCounter').textContent = '0 / 0';
         $('frontCategory').textContent = '';
         $('backCategory').textContent = '';
         $('frontMain').innerHTML = '<div class="ja-text">該当するカードがありません</div>';
@@ -314,7 +449,6 @@
         return;
       }
       const item = list[index];
-      $('cardCounter').textContent = (index + 1) + ' / ' + list.length;
       const mark = known.has(item.fr) ? ' ✓' : '';
       const frBlock =
         '<div class="fr-text">' + esc(item.fr) + '</div>' +
@@ -390,9 +524,17 @@
       rebuild();
     });
 
+    document.querySelectorAll('#viewSeg button').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
+    document.querySelectorAll('#hideSeg button').forEach((b) => b.addEventListener('click', () => setHide(b.dataset.hide)));
+    // 隠れているセルをタップ → その行だけ見える（もう一度タップで隠す）
+    $('vocabBody').addEventListener('click', (e) => {
+      const td = e.target.closest('td.c-ja, td.c-fr');
+      if (td) td.classList.toggle('shown');
+    });
+
     // キーボード（PC用）
     document.addEventListener('keydown', (e) => {
-      if (e.target.tagName === 'SELECT') return;
+      if (e.target.tagName === 'SELECT' || viewMode !== 'card') return;
       if (e.key === 'ArrowRight') nextCard();
       else if (e.key === 'ArrowLeft') prevCard();
       else if (e.key === ' ') { e.preventDefault(); flipCard(); }
